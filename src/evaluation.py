@@ -1,10 +1,15 @@
+import os
+
+import numpy as np
+import networkx as nx
 from rpy2.robjects import default_converter, globalenv, numpy2ri, r
+from rpy2 import robjects
 
 # 1. Define the absolute path to your shared folder shortcut or MyDrive folder
 # Use the 'Copy Path' feature in the Colab sidebar to get this exactly right
 
 # replace with file path on ruche server
-file_path = ""
+file_path = "/workdir/ahns/evaluate.R"
 
 # 2. Source the file using the R 'source' function via robjects
 if os.path.exists(file_path):

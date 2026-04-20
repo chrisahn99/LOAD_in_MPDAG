@@ -82,7 +82,6 @@ def skeleton_step(
     return g
 
 
-
 def get_locally_valid_parent_sets(g: np.ndarray, x: int) -> Sequence[set[int]]:
     """
     Get all locally valid parent sets for a given node in the graph, following
@@ -463,10 +462,6 @@ def mb_by_mb_alg(
     return g
 
 ## LOAD in MPDAG version
-
-from collections import defaultdict
-from typing import Callable, Sequence
-import numpy as np
 
 # (Assume find_unshielded_triples, v_struc_pc, skeleton_step, get_locally_valid_parent_sets,
 # grow_shrink, total_conditioning, learn_local_structure, copy_local_structure,

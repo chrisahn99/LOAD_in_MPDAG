@@ -133,7 +133,7 @@ def generate_data(
 # Use the 'Copy Path' feature in the Colab sidebar to get this exactly right
 
 # put the file path of the location on the ruche server
-file_path = ""
+file_path = "/workdir/ahns/generate_data.R"
 
 # 2. Source the file using the R 'source' function via robjects
 if os.path.exists(file_path):

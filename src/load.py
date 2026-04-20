@@ -4,6 +4,8 @@ from typing import Callable, NamedTuple, Sequence
 
 import numpy as np
 
+from src.mb_by_mb import mb_by_mb_alg, mb_by_mb_in_mpdag_alg
+
 ## Original
 
 class Neighbors(NamedTuple):
@@ -14,6 +16,42 @@ class Neighbors(NamedTuple):
     parents: set[int]
     children: set[int]
     unoriented: set[int]
+
+
+def draw_complex_graph(array):
+    arr = np.array(array)
+    G_directed = nx.DiGraph()
+    G_undirected = nx.Graph()
+
+    nodes = range(len(arr))
+    G_directed.add_nodes_from(nodes)
+    G_undirected.add_nodes_from(nodes)
+
+    for i in range(len(arr)):
+        for j in range(len(arr)):
+            # Handle the arrows (Heads)
+            if arr[i, j] == 1:
+                G_directed.add_edge(j, i)
+
+            # Handle the links (Tails)
+            # We check i < j to avoid adding the same undirected edge twice
+            elif arr[i, j] == -1 and arr[j, i] == -1 and i < j:
+                G_undirected.add_edge(i, j)
+
+    pos = nx.circular_layout(G_directed)
+    plt.figure(figsize=(8, 6))
+
+    # 1. Draw Nodes
+    nx.draw_networkx_nodes(G_directed, pos, node_color='skyblue')
+    nx.draw_networkx_labels(G_directed, pos)
+
+    # 2. Draw Directed Edges (Arrows)
+    nx.draw_networkx_edges(G_directed, pos, edgelist=G_directed.edges(), arrows=True)
+
+    # 3. Draw Undirected Edges (Simple Lines)
+    nx.draw_networkx_edges(G_undirected, pos, edgelist=G_undirected.edges(), arrows=False)
+
+    plt.show()
 
 
 def get_neighbors(g: np.ndarray, x: int) -> Neighbors:

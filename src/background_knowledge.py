@@ -2,7 +2,11 @@
 # fraction_required and fraction_forbidden
 
 import random
+import math
+
+import numpy as np
 import networkx as nx
+
 
 def sample_background_knowledge_v2(
       true_dag: nx.DiGraph,
@@ -32,11 +36,6 @@ def sample_background_knowledge_v2(
 
     return {"forbidden": forbidden, "required": required}
 
-
-import random
-import networkx as nx
-import math
-import numpy as np
 
 def sample_local_background_knowledge(
     true_dag: nx.DiGraph,
@@ -82,7 +81,6 @@ def sample_local_background_knowledge(
 
     return {"forbidden": forbidden, "required": required}
 
-import numpy as np
 
 def initialize_background_knowledge(num_nodes: int, bk_dict: dict) -> np.ndarray:
     """
