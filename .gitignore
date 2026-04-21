@@ -44,3 +44,4 @@ experiments/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+slurm_scripts/
