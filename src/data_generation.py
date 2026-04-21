@@ -1,3 +1,4 @@
+import os
 import json
 from pathlib import Path
 import pickle
@@ -5,6 +6,7 @@ import pickle
 import numpy as np
 import networkx as nx
 from rpy2.robjects import r
+from rpy2 import robjects
 
 
 
@@ -129,15 +131,13 @@ def generate_data(
         return data
 
 
-# 1. Define the absolute path to your shared folder shortcut or MyDrive folder
-# Use the 'Copy Path' feature in the Colab sidebar to get this exactly right
+# Source the R data generation functions from the project root
+file_path = Path(__file__).resolve().parent.parent / "generate_data.R"
 
-# put the file path of the location on the ruche server
-file_path = "/workdir/ahns/generate_data.R"
-
-# 2. Source the file using the R 'source' function via robjects
-if os.path.exists(file_path):
-    robjects.r.source(file_path)
+# Source the file using the R 'source' function via robjects
+if file_path.exists():
+    robjects.r.source(str(file_path))
     print(f"Successfully sourced: {file_path}")
 else:
     print(f"Error: File not found at {file_path}")
+    raise FileNotFoundError(f"R data generation script not found at {file_path}")

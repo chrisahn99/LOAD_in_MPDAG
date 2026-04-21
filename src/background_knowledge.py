@@ -112,4 +112,4 @@ def initialize_background_knowledge(num_nodes: int, bk_dict: dict) -> np.ndarray
     # you would normally also pass 'forbidden' into `learn_local_structure`
     # to prevent it from drawing those edges during the skeleton/Meek phases.
 
-    return gs
+    return g

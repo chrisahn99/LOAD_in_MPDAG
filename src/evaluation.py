@@ -1,22 +1,21 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import networkx as nx
 from rpy2.robjects import default_converter, globalenv, numpy2ri, r
 from rpy2 import robjects
 
-# 1. Define the absolute path to your shared folder shortcut or MyDrive folder
-# Use the 'Copy Path' feature in the Colab sidebar to get this exactly right
+# Source the R evaluation functions from the project root
+file_path = Path(__file__).resolve().parent.parent / "evaluate.R"
 
-# replace with file path on ruche server
-file_path = "/workdir/ahns/evaluate.R"
-
-# 2. Source the file using the R 'source' function via robjects
-if os.path.exists(file_path):
-    robjects.r.source(file_path)
+# Source the file using the R 'source' function via robjects
+if file_path.exists():
+    robjects.r.source(str(file_path))
     print(f"Successfully sourced: {file_path}")
 else:
     print(f"Error: File not found at {file_path}")
+    raise FileNotFoundError(f"R evaluation script not found at {file_path}")
 
 
 def dag2cpdag(dag: np.ndarray) -> np.ndarray:

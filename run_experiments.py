@@ -11,6 +11,7 @@ Usage:
 import argparse
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from tqdm import tqdm
 from src.running import run_algorithm_mpdag
 
@@ -85,6 +86,12 @@ def parse_arguments():
         help="Explicitly include ancestors"
     )
     parser.add_argument(
+        "--save",
+        type=bool,
+        default=False,
+        help="Save experimental data to a file identified by the seed and the kwargs (deprecated - use save_path instead)"
+    )
+    parser.add_argument(
         "--discrete",
         type=bool,
         default=False,
@@ -152,6 +159,10 @@ def main():
     """Main execution function."""
     args = parse_arguments()
     
+    # Ensure save directory exists
+    save_path = Path(args.save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    
     # Build base_args_skeleton from parsed arguments
     base_args_skeleton = {
         "exp_degree": args.exp_degree,
@@ -162,6 +173,7 @@ def main():
         "samples_num": args.samples_num,
         "expl_anc": args.expl_anc,
         "discrete": args.discrete,
+        "save": args.save,
         "alpha": args.alpha,
         "ci_test": args.ci_test,
         "logging": args.logging,
