@@ -213,8 +213,10 @@ def main():
             # Flatten the dictionary into a row
             row = {
                 "observed": observed,
+                "exp_degree": args.exp_degree,
+                "n_samples": args.samples_num,
                 "fraction_forbidden": args.frac_forb,
-                "fraction_required": frac_req
+                "fraction_required": frac_req,
             }
             
             for metric_key, stats in f1_dict.items():
