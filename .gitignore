@@ -45,3 +45,8 @@ experiments/
 .Trashes
 ehthumbs.db
 slurm_scripts/
+
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
