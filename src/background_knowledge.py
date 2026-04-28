@@ -113,3 +113,67 @@ def initialize_background_knowledge(num_nodes: int, bk_dict: dict) -> np.ndarray
     # to prevent it from drawing those edges during the skeleton/Meek phases.
 
     return g
+
+
+def sample_local_background_knowledge_noised(
+    true_dag: nx.DiGraph,
+    targets: np.ndarray,
+    fraction_required: float = 0.1,
+    fraction_forbidden: float = 0.1,
+    false_required_ratio: float = 0.5,
+    seed: int = 42
+):
+    """
+    Samples required and forbidden edges specifically connected to target nodes.
+    Injects false required edges (starting from targets) to test robustness.
+    """
+    random.seed(seed)
+    nodes = list(true_dag.nodes())
+    target_set = set(targets)
+    true_edges = list(true_dag.edges())
+    true_edges_set = set(true_edges) # Set for O(1) lookups
+
+    # 1. Identify "Local" True Edges (pointing to or from targets)
+    local_true_edges = [
+        (u, v) for u, v in true_edges
+        if u in target_set or v in target_set
+    ]
+
+    # 2. Identify "Local" Non-Edges
+    # Every possible pair involving at least one target minus existing edges
+    all_possible_local = [
+        (u, v) for u in nodes for v in nodes
+        if u != v and (u in target_set or v in target_set)
+    ]
+    local_non_edges = [e for e in all_possible_local if e not in true_edges_set]
+
+    # Helper to calculate count with a minimum of 1 if fraction > 0
+    def get_sample_count(pool, fraction):
+        if fraction <= 0 or not pool:
+            return 0
+        return max(1, math.ceil(len(pool) * fraction))
+
+    # Sampling standard background knowledge
+    num_req = get_sample_count(local_true_edges, fraction_required)
+    num_forb = get_sample_count(local_non_edges, fraction_forbidden)
+
+    required = set(random.sample(local_true_edges, num_req)) if num_req > 0 else set()
+    forbidden = set(random.sample(local_non_edges, num_forb)) if num_forb > 0 else set()
+
+
+    # 3. Add "False" Required Edges
+    # Candidates: Edges starting from a target node that are NOT in the true DAG
+    false_req_candidates = [
+        (u, v) for u in target_set for v in nodes
+        if u != v and (u, v) not in true_edges_set
+    ]
+
+    # Calculate quantity: 50% of num_req, minimum 1
+    if false_required_ratio > 0 and false_req_candidates:
+        ideal_false_req_count = max(1, math.ceil(num_req * false_required_ratio))
+        # Safely cap the count so we don't try to sample more candidates than exist
+        num_false_req = min(len(false_req_candidates), ideal_false_req_count)
+        
+        false_required = set(random.sample(false_req_candidates, num_false_req))
+        required = required.union(false_required)
+    return {"forbidden": forbidden, "required": required}
