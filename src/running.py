@@ -63,6 +63,7 @@ def run_algorithm_mpdag(
   result["tests"] = ci_test.get_tests_per_order().tolist()
   result["cpt"] = cpt
   result["true_dag"] = true_dag
+  result["data"] = data
 
   return result
 
