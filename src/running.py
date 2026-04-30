@@ -13,7 +13,7 @@ from src.background_knowledge import (
     initialize_background_knowledge,
     sample_local_background_knowledge_noised
 )
-from src.evaluation import get_true_osets, evaluate_oset
+from src.evaluation import get_true_osets, evaluate_oset, true_causal_effects, evaluate_intervention
 
 ### Sampling around target nodes only
 
@@ -158,9 +158,18 @@ def run_experiment_mpdag(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
+  # Intervention metrics
+  family = "binary" if base_args.get("discrete", False) else "gaussian"
+  true_effects = true_causal_effects(experiments_with_b, family=family)
+
+  int_dist_with_b = evaluate_intervention("load", list(experiments_with_b.values()), true_effects, family=family)
+  int_dist_without_b = evaluate_intervention("load", list(experiments_without_b.values()), true_effects, family=family)
+
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
+      "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
+      "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
   }
 
   return f1_dict
@@ -256,9 +265,18 @@ def run_experiment_mpdag_v2(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
+  # Intervention metrics
+  family = "binary" if base_args.get("discrete", False) else "gaussian"
+  true_effects = true_causal_effects(experiments_with_b, family=family)
+
+  int_dist_with_b = evaluate_intervention("load", list(experiments_with_b.values()), true_effects, family=family)
+  int_dist_without_b = evaluate_intervention("load", list(experiments_without_b.values()), true_effects, family=family)
+
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
+      "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
+      "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
   }
 
   return f1_dict
@@ -454,9 +472,18 @@ def run_experiment_mpdag_noised(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
+  # Intervention metrics
+  family = "binary" if base_args.get("discrete", False) else "gaussian"
+  true_effects = true_causal_effects(experiments_with_b, family=family)
+
+  int_dist_with_b = evaluate_intervention("load", list(experiments_with_b.values()), true_effects, family=family)
+  int_dist_without_b = evaluate_intervention("load", list(experiments_without_b.values()), true_effects, family=family)
+
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
+      "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
+      "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
   }
 
   return f1_dict

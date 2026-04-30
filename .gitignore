@@ -50,3 +50,6 @@ slurm_scripts/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+
+# Gemini
+.geminiignore

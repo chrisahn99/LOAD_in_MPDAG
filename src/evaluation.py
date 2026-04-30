@@ -84,8 +84,7 @@ def get_true_osets(experiments):
         # print(f"Processed Experiment {exp_id}: Treatment={treatment}, Outcome={outcome}")
 
     return true_osets
-
-# EVALUATE OSET
+    # EVALUATE OSET
 def get_precision(true: set, pred: set):
     if true == pred:
         return 1.0
@@ -305,7 +304,7 @@ def get_adj_sets(project: str, h: dict, t1: int, t2: int):
                 amat = -amat.copy()
                 amat[np.logical_and(amat == 0, amat.T == -1)] = 1
                 # return get_locally_valid_parent_sets(amat, t1, t2)
-                return [[]] # Placeholder as we don't have IDA implemented here
+                return [[]]  # Placeholder
         else:
             return None
     elif project in ["mb_by_mb", "ldecc", "mb_by_mb_plus", "ldecc_plus"]:
@@ -371,6 +370,23 @@ def intervention_distance(
             exp_dist.append(np.mean(dist))
         distances.append(np.mean(exp_dist))
     return np.array(distances)
+
+
+def evaluate_intervention(algorithm, results, true_effects, family="gaussian"):
+    """
+    Evaluates the interventional performance (ATE estimation) of an algorithm.
+    Returns the intervention distance for each experiment.
+    """
+    # 1. Prepare samples dictionary (required by estimate_ates)
+    samples_dict = {h["id"]: h["data"] for h in results}
+
+    # 2. Estimate ATEs using the algorithm's discovered adjustment sets
+    est_ates = estimate_ates(results, algorithm, samples_dict, family=family)
+
+    # 3. Calculate intervention distance between estimated and true ATEs
+    distances = intervention_distance(est_ates, true_effects)
+
+    return distances
 
 
 # Modified functions to evaluate on real data
