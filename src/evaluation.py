@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from itertools import permutations
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import networkx as nx
@@ -195,8 +194,7 @@ def evaluate_oset(algorithm, results, true_osets: dict):
             rec_scores.append(0.0)
             f1_scores.append(0.0)
 
-    # 4. Return trimmed results (best 5 and worst 5 removed)
-    # This follows the paper's methodology to show general trends
+    # 4. Return results
     return (
         (prec_scores),
         (rec_scores),
@@ -306,7 +304,8 @@ def get_adj_sets(project: str, h: dict, t1: int, t2: int):
             else:  # unidentifiable, fall back to local IDA
                 amat = -amat.copy()
                 amat[np.logical_and(amat == 0, amat.T == -1)] = 1
-                return get_locally_valid_parent_sets(amat, t1, t2)
+                # return get_locally_valid_parent_sets(amat, t1, t2)
+                return [[]] # Placeholder as we don't have IDA implemented here
         else:
             return None
     elif project in ["mb_by_mb", "ldecc", "mb_by_mb_plus", "ldecc_plus"]:
@@ -335,46 +334,24 @@ def estimate_ates(
     algorithm: str,
     samples: dict,
     family: str = "gaussian",
-) -> np.ndarray:
+) -> dict:
     ates = {}
-    adj_set_proc = []
-    with ProcessPoolExecutor() as adj_set_e:
-        for h in results:
-            ates[h["id"]] = {}
-            for t1, t2 in permutations(h["targets"], 2):
-                p = adj_set_e.submit(get_adj_sets, algorithm, h, t1, t2)
-                p.exp_id = h["id"]
-                p.t1 = t1
-                p.t2 = t2
-                adj_set_proc.append(p)
-        ate_procs = []
-        with ProcessPoolExecutor() as ate_e:
-            for adj_sets_p in tqdm(
-                as_completed(adj_set_proc),
-                total=len(adj_set_proc),
-            ):
-                adj_sets = adj_sets_p.result()
-                if adj_sets == None:
-                    ates[adj_sets_p.exp_id][(adj_sets_p.t1, adj_sets_p.t2)] = [0.0]
-                else:
-                    p = ate_e.submit(
-                        estimate_ate,
-                        treatment=adj_sets_p.t1,
-                        outcome=adj_sets_p.t2,
-                        adj_sets=adj_sets,
-                        samples=samples[adj_sets_p.exp_id],
-                        family=family,
-                    )
-                    p.exp_id = adj_sets_p.exp_id
-                    p.t1 = adj_sets_p.t1
-                    p.t2 = adj_sets_p.t2
-                    ate_procs.append(p)
-            for p in tqdm(
-                as_completed(ate_procs),
-                total=len(ate_procs),
-            ):
-                ates[p.exp_id][(p.t1, p.t2)] = p.result()
-        return ates
+    for h in tqdm(results, desc="Estimating ATEs"):
+        exp_id = h["id"]
+        ates[exp_id] = {}
+        for t1, t2 in permutations(h["targets"], 2):
+            adj_sets = get_adj_sets(algorithm, h, t1, t2)
+            if adj_sets is None:
+                ates[exp_id][(t1, t2)] = [0.0]
+            else:
+                ates[exp_id][(t1, t2)] = estimate_ate(
+                    treatment=t1,
+                    outcome=t2,
+                    adj_sets=adj_sets,
+                    samples=samples[exp_id],
+                    family=family,
+                )
+    return ates
 
 
 def intervention_distance(
