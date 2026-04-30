@@ -35,32 +35,27 @@ def run_algorithm_mpdag(
 
   start = perf_counter()
   # Run algorithm
-  try:
-      if with_b:
-
-          result = load_in_mpdag(
-              data=data,
-              ci_test=ci_test,
-              alpha=alpha,
-              targets=targets,
-              background_knowledge=bg_knowledge,
-              mb_algorithm="grow_shrink",
-              logging=logging,
-              **kwargs
-          )
-      else:
-          result = load(
-              data=data,
-              ci_test=ci_test,
-              alpha=alpha,
-              targets=targets,
-              mb_algorithm="grow_shrink",
-              logging=logging,
-              **kwargs
-          )
-      result["failed"] = False
-  except Exception:
-      result = {"failed": True}
+  if with_b:
+      result = load_in_mpdag(
+          data=data,
+          ci_test=ci_test,
+          alpha=alpha,
+          targets=targets,
+          background_knowledge=bg_knowledge,
+          mb_algorithm="grow_shrink",
+          logging=logging,
+          **kwargs
+      )
+  else:
+      result = load(
+          data=data,
+          ci_test=ci_test,
+          alpha=alpha,
+          targets=targets,
+          mb_algorithm="grow_shrink",
+          logging=logging,
+          **kwargs
+      )
 
   result["time"] = perf_counter() - start
   result["id"] = id
@@ -163,33 +158,9 @@ def run_experiment_mpdag(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
-  # Only succesful runs
-
-  successful_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is False]
-  successful_experiments_with_b = {k: v for k, v in experiments_with_b.items() if k in successful_exps}
-  successful_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in successful_exps}
-
-  true_osets_successful_with_b = get_true_osets(successful_experiments_with_b)
-  f1_successful_with_b = np.sort(evaluate_oset("load", list(successful_experiments_with_b.values()), true_osets_successful_with_b)[2])
-
-  true_osets_successful_without_b = get_true_osets(successful_experiments_without_b)
-  f1_successful_without_b = np.sort(evaluate_oset("load", list(successful_experiments_without_b.values()), true_osets_successful_without_b)[2])
-
-
-  # failed runs
-
-  failed_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is True]
-  failed_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in failed_exps}
-
-  true_osets_failed_without_b = get_true_osets(failed_experiments_without_b)
-  f1_failed_without_b = np.sort(evaluate_oset("load", list(failed_experiments_without_b.values()), true_osets=true_osets_failed_without_b)[2])
-
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
-      "f1_successful_with_b": {"mean":f1_successful_with_b.mean(), "std": f1_successful_with_b.std()},
-      "f1_successful_without_b": {"mean":f1_successful_without_b.mean(), "std": f1_successful_without_b.std()},
-      "f1_failed_without_b": {"mean":f1_failed_without_b.mean(), "std": f1_failed_without_b.std()}
   }
 
   return f1_dict
@@ -285,33 +256,9 @@ def run_experiment_mpdag_v2(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
-  # Only succesful runs
-
-  successful_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is False]
-  successful_experiments_with_b = {k: v for k, v in experiments_with_b.items() if k in successful_exps}
-  successful_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in successful_exps}
-
-  true_osets_successful_with_b = get_true_osets(successful_experiments_with_b)
-  f1_successful_with_b = np.sort(evaluate_oset("load", list(successful_experiments_with_b.values()), true_osets_successful_with_b)[2])
-
-  true_osets_successful_without_b = get_true_osets(successful_experiments_without_b)
-  f1_successful_without_b = np.sort(evaluate_oset("load", list(successful_experiments_without_b.values()), true_osets_successful_without_b)[2])
-
-
-  # failed runs
-
-  failed_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is True]
-  failed_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in failed_exps}
-
-  true_osets_failed_without_b = get_true_osets(failed_experiments_without_b)
-  f1_failed_without_b = np.sort(evaluate_oset("load", list(failed_experiments_without_b.values()), true_osets=true_osets_failed_without_b)[2])
-
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
-      "f1_successful_with_b": {"mean":f1_successful_with_b.mean(), "std": f1_successful_with_b.std()},
-      "f1_successful_without_b": {"mean":f1_successful_without_b.mean(), "std": f1_successful_without_b.std()},
-      "f1_failed_without_b": {"mean":f1_failed_without_b.mean(), "std": f1_failed_without_b.std()}
   }
 
   return f1_dict
@@ -507,33 +454,9 @@ def run_experiment_mpdag_noised(base_args, base_seed, n_exp):
   true_osets_without_b = get_true_osets(experiments_without_b)
   f1_without_b = np.sort(evaluate_oset("load", list(experiments_without_b.values()), true_osets_without_b)[2])
 
-  # Only succesful runs
-
-  successful_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is False]
-  successful_experiments_with_b = {k: v for k, v in experiments_with_b.items() if k in successful_exps}
-  successful_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in successful_exps}
-
-  true_osets_successful_with_b = get_true_osets(successful_experiments_with_b)
-  f1_successful_with_b = np.sort(evaluate_oset("load", list(successful_experiments_with_b.values()), true_osets_successful_with_b)[2])
-
-  true_osets_successful_without_b = get_true_osets(successful_experiments_without_b)
-  f1_successful_without_b = np.sort(evaluate_oset("load", list(successful_experiments_without_b.values()), true_osets_successful_without_b)[2])
-
-
-  # failed runs
-
-  failed_exps = [k for k, v in experiments_with_b.items() if v.get("failed") is True]
-  failed_experiments_without_b = {k: v for k, v in experiments_without_b.items() if k in failed_exps}
-
-  true_osets_failed_without_b = get_true_osets(failed_experiments_without_b)
-  f1_failed_without_b = np.sort(evaluate_oset("load", list(failed_experiments_without_b.values()), true_osets=true_osets_failed_without_b)[2])
-
   f1_dict = {
       "f1_with_b": {"mean":f1_with_b.mean(), "std": f1_with_b.std()},
       "f1_without_b": {"mean":f1_without_b.mean(), "std": f1_without_b.std()},
-      "f1_successful_with_b": {"mean":f1_successful_with_b.mean(), "std": f1_successful_with_b.std()},
-      "f1_successful_without_b": {"mean":f1_successful_without_b.mean(), "std": f1_successful_without_b.std()},
-      "f1_failed_without_b": {"mean":f1_failed_without_b.mean(), "std": f1_failed_without_b.std()}
   }
 
   return f1_dict
