@@ -53,3 +53,5 @@ slurm_scripts/
 
 # Gemini
 .geminiignore
+
+*.sh
