@@ -335,7 +335,7 @@ def estimate_ates(
     family: str = "gaussian",
 ) -> dict:
     ates = {}
-    for h in tqdm(results, desc="Estimating ATEs"):
+    for h in results:
         exp_id = h["id"]
         ates[exp_id] = {}
         for t1, t2 in permutations(h["targets"], 2):
@@ -357,7 +357,7 @@ def intervention_distance(
     est_ates: dict, true_ates: dict, aggr: str = "abs"
 ) -> np.ndarray:
     distances = []
-    for exp in tqdm(est_ates, desc="Calculating intervention distances"):
+    for exp in est_ates:
         exp_dist = []
         for pair in est_ates[exp]:
             true_ate = true_ates[exp][pair]

@@ -176,6 +176,46 @@ def run_experiment_mpdag(base_args, base_seed, n_exp):
   return f1_dict
 
 
+def run_experiment_mpdag_light(base_args, base_seed, n_exp):
+    # Lighter version that doesn't store all experiments in memory (only the final metrics), to save memory when running many experiments
+
+    f1_with_b_list = []
+    f1_without_b_list = []
+    int_dist_with_b_list = []
+    int_dist_without_b_list = []
+    family = "binary" if base_args.get("discrete", False) else "gaussian"
+
+    for s in tqdm(range(n_exp)):
+        exp_with_b = get_experiment_mpdag(**base_args, seed=base_seed+s, with_b=True)
+        exp_without_b = get_experiment_mpdag(**base_args, seed=base_seed+s, with_b=False)
+
+        # Evaluate immediately, store only scalars
+        true_osets_with_b = get_true_osets({exp_with_b["id"]: exp_with_b})
+        f1_with_b_list.append(evaluate_oset("load", [exp_with_b], true_osets_with_b)[2])
+
+        true_osets_without_b = get_true_osets({exp_without_b["id"]: exp_without_b})
+        f1_without_b_list.append(evaluate_oset("load", [exp_without_b], true_osets_without_b)[2])
+
+        true_effects = true_causal_effects({exp_with_b["id"]: exp_with_b}, family=family)
+        int_dist_with_b_list.append(evaluate_intervention("load", [exp_with_b], true_effects, family=family))
+        int_dist_without_b_list.append(evaluate_intervention("load", [exp_without_b], true_effects, family=family))
+
+        # Explicitly discard large objects
+        del exp_with_b, exp_without_b
+
+    f1_with_b = np.sort(np.concatenate(f1_with_b_list))
+    f1_without_b = np.sort(np.concatenate(f1_without_b_list))
+    int_dist_with_b = np.concatenate(int_dist_with_b_list)
+    int_dist_without_b = np.concatenate(int_dist_without_b_list)
+
+    return {
+        "f1_with_b": {"mean": f1_with_b.mean(), "std": f1_with_b.std()},
+        "f1_without_b": {"mean": f1_without_b.mean(), "std": f1_without_b.std()},
+        "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
+        "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
+    }
+
+
 ### V2: sampling around all nodes
 
 
