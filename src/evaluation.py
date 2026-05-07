@@ -240,7 +240,7 @@ def true_causal_effects(experiments: dict, family="gaussian") -> dict:
     else:
         raise ValueError("Invalid family")
     effects = {}
-    for exp_id, exp in tqdm(experiments.items(), desc="Getting true effects"):
+    for exp_id, exp in experiments.items():
         effects[exp_id] = {}
         for t1, t2 in permutations(exp["targets"], 2):
             effects[exp_id][(t1, t2)] = get_effect(
