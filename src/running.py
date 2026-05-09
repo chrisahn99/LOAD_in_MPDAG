@@ -520,8 +520,15 @@ def get_experiment_mpdag_noised(
 
 
     # Sample background knowledge (e.g., 20% of edges)
-    bg_knowledge = sample_local_background_knowledge_noised(true_dag, targets, fraction_required, fraction_forbidden, false_required_ratio, seed)
-
+    bg_knowledge = sample_local_background_knowledge_noised(
+        true_dag=true_dag,
+        targets=targets,
+        fraction_required=fraction_required,
+        fraction_forbidden=fraction_forbidden,
+        noise_mu=false_required_ratio,
+        seed=seed
+    )
+    
     initial_G = initialize_background_knowledge(num_nodes=observed, bk_dict=bg_knowledge)
 
     return run_algorithm_mpdag(

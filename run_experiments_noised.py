@@ -47,7 +47,7 @@ def parse_arguments():
         "--exp_degree",
         type=float,
         default=2.0,
-        help="Experimental degree"
+        help="Expected degree of the DAG"
     )
     parser.add_argument(
         "--max_degree",
@@ -141,7 +141,7 @@ def parse_arguments():
         "--false_ratio",
         type=float,
         default=0.5,
-        help="Fraction forbidden (constant across experiments)"
+        help="Fraction of required edges to corrupt with noise"
     )
     
     # Experiment control

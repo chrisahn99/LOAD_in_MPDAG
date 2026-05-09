@@ -120,32 +120,31 @@ def sample_local_background_knowledge_noised(
     targets: np.ndarray,
     fraction_required: float = 0.1,
     fraction_forbidden: float = 0.1,
-    false_required_ratio: float = 0.5,
+    noise_mu: float = 0.2,
     seed: int = 42
 ):
-    """
-    Samples required and forbidden edges specifically connected to target nodes.
-    Injects false required edges (starting from targets) to test robustness.
-    """
     random.seed(seed)
+    np.random.seed(seed)
+
+    # Derive sigma from mu following the three-sigma rule
+    noise_sigma = noise_mu / 3
+
     nodes = list(true_dag.nodes())
     target_set = set(targets)
-    true_edges = list(true_dag.edges())
-    true_edges_set = set(true_edges) # Set for O(1) lookups
+    true_edges = set(true_dag.edges())
 
-    # 1. Identify "Local" True Edges (pointing to or from targets)
+    # 1. Identify local true edges (pointing to or from targets)
     local_true_edges = [
         (u, v) for u, v in true_edges
         if u in target_set or v in target_set
     ]
 
-    # 2. Identify "Local" Non-Edges
-    # Every possible pair involving at least one target minus existing edges
+    # 2. Identify local non-edges (every possible local pair minus true edges)
     all_possible_local = [
         (u, v) for u in nodes for v in nodes
         if u != v and (u in target_set or v in target_set)
     ]
-    local_non_edges = [e for e in all_possible_local if e not in true_edges_set]
+    local_non_edges = [e for e in all_possible_local if e not in true_edges]
 
     # Helper to calculate count with a minimum of 1 if fraction > 0
     def get_sample_count(pool, fraction):
@@ -153,27 +152,31 @@ def sample_local_background_knowledge_noised(
             return 0
         return max(1, math.ceil(len(pool) * fraction))
 
-    # Sampling standard background knowledge
+    # 3. Sample required and forbidden edges (same logic as original)
     num_req = get_sample_count(local_true_edges, fraction_required)
     num_forb = get_sample_count(local_non_edges, fraction_forbidden)
 
     required = set(random.sample(local_true_edges, num_req)) if num_req > 0 else set()
     forbidden = set(random.sample(local_non_edges, num_forb)) if num_forb > 0 else set()
 
+    # 4. Sample noise rate from Gaussian, clipped to [0, 1]
+    noise_rate = float(np.clip(np.random.normal(loc=noise_mu, scale=noise_sigma), 0.0, 1.0))
 
-    # 3. Add "False" Required Edges
-    # Candidates: Edges starting from a target node that are NOT in the true DAG
-    false_req_candidates = [
-        (u, v) for u in target_set for v in nodes
-        if u != v and (u, v) not in true_edges_set
-    ]
+    # 5. Corrupt required edges
+    n = len(required)
 
-    # Calculate quantity: 50% of num_req, minimum 1
-    if false_required_ratio > 0 and false_req_candidates:
-        ideal_false_req_count = max(1, math.ceil(num_req * false_required_ratio))
-        # Safely cap the count so we don't try to sample more candidates than exist
-        num_false_req = min(len(false_req_candidates), ideal_false_req_count)
-        
-        false_required = set(random.sample(false_req_candidates, num_false_req))
-        required = required.union(false_required)
-    return {"forbidden": forbidden, "required": required}
+    if n == 0 or noise_rate == 0.0 or not local_non_edges:
+        return {"required": required, "forbidden": forbidden}
+
+    if n == 1:
+        corrupt = random.random() < noise_rate
+        if corrupt:
+            required = set(random.sample(local_non_edges, 1))
+    else:
+        k = min(round(noise_rate * n), len(local_non_edges))
+        if k > 0:
+            to_corrupt = set(random.sample(list(required), k))
+            false_edges = set(random.sample(local_non_edges, k))
+            required = (required - to_corrupt) | false_edges
+
+    return {"required": required, "forbidden": forbidden}
