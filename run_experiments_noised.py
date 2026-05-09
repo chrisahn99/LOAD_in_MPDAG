@@ -18,9 +18,9 @@ from src.running import run_algorithm_mpdag
 # Import or define your run_experiment_mpdag function
 # If it doesn't exist, we'll create a wrapper below
 try:
-    from src.running import run_experiment_mpdag_noised
+    from src.running import run_experiment_mpdag_noised_light
 except ImportError:
-    def run_experiment_mpdag_noised(args, base_seed, n_exp):
+    def run_experiment_mpdag_noised_light(args, base_seed, n_exp):
         """
         Placeholder wrapper. Replace with actual implementation or import.
         """
@@ -215,7 +215,7 @@ def main():
             
             # Run experiment
             print(f"\n  Running: observed={observed}, frac_req={frac_req}")
-            f1_dict = run_experiment_mpdag_noised(base_args_skeleton, args.base_seed, args.n_exp)
+            f1_dict = run_experiment_mpdag_noised_light(base_args_skeleton, args.base_seed, args.n_exp)
             
             # Flatten the dictionary into a row
             row = {
