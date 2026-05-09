@@ -201,6 +201,42 @@ def evaluate_oset(algorithm, results, true_osets: dict):
     )
 
 
+# Modified functions to evaluate on real data
+
+
+def get_true_osets_real_data(experiments):
+    """
+    Sequentially determines the true optimal adjustment sets for a dictionary of experiments.
+    """
+    true_osets = {}
+    for exp_id, exp in experiments.items():
+        # 1. Convert the true DAG to a CPDAG
+        # Using a helper (dag2cpdag) to represent the Markov Equivalence Class
+        true_dag_matrix = nx.to_numpy_array(exp["true_dag"])
+
+        # 2. Identify treatment and outcome from the true DAG
+        # Based on explicit ancestral relations
+        targets = exp["targets"]
+        if nx.has_path(exp["true_dag"], targets[0], targets[1]):
+            treatment, outcome = targets[0], targets[1]
+        else:
+            treatment, outcome = targets[1], targets[0]
+
+        # 3. Retrieve the true optimal adjustment set relative to the true DAG
+        true_oset = get_optimal_adj_set(true_dag_matrix, treatment, outcome)
+
+        # 4. Store the ground truth result
+        true_osets[exp_id] = {
+            "treatment": treatment,
+            "outcome": outcome,
+            "oset": true_oset,
+        }
+
+        # print(f"Processed Experiment {exp_id}: Treatment={treatment}, Outcome={outcome}")
+
+    return true_osets
+
+
 # INTERVENTION DISTANCE
 def is_ancestor(t1: int, t2: int, amat: np.ndarray) -> bool:
     reach = amat.copy().astype(bool)

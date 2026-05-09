@@ -13,7 +13,7 @@ from src.background_knowledge import (
     initialize_background_knowledge,
     sample_local_background_knowledge_noised
 )
-from src.evaluation import get_true_osets, evaluate_oset, true_causal_effects, evaluate_intervention
+from src.evaluation import get_true_osets, evaluate_oset, true_causal_effects, evaluate_intervention, get_true_osets_real_data
 
 ### Sampling around target nodes only
 
