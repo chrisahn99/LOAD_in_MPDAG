@@ -378,6 +378,7 @@ def get_experiment_mpdag_real(
       fraction_required: float = 0.1,
       alpha: float = 0.01,
       ci_test: str = "fisherz",
+      sampling_strategy: str = "local",
     ) -> dict:
     """
     Run a single experiment with a specific seed.
@@ -392,10 +393,13 @@ def get_experiment_mpdag_real(
     """
 
 
-
-    # Sample background knowledge (e.g., 20% of edges)
-    bg_knowledge = sample_background_knowledge_v2(true_dag, fraction_required, fraction_forbidden, seed)
-
+    if sampling_strategy == "local":
+        bg_knowledge = sample_local_background_knowledge(true_dag, targets, fraction_required, fraction_forbidden, seed)
+    elif sampling_strategy == "global":
+        bg_knowledge = sample_background_knowledge_v2(true_dag, fraction_required, fraction_forbidden, seed)
+    else:
+        raise ValueError(f"Invalid sampling strategy: {sampling_strategy}")
+    
     initial_G = initialize_background_knowledge(num_nodes=observed, bk_dict=bg_knowledge)
     id = f"{data_name}_{seed}"
 
@@ -434,15 +438,24 @@ def run_experiment_mpdag_real(base_args, base_seed, pairs_to_test):
   # Convert to numpy arrays immediately
   prec_without_b, rec_without_b, f1_without_b = [np.array(x) for x in res_without]
 
+  # Intervention metrics
+  family = "binary" if base_args.get("discrete", False) else "gaussian"
+  true_effects = true_causal_effects(experiments_with_b, family=family) 
+
+  int_dist_with_b = evaluate_intervention("load", list(experiments_with_b.values()), true_effects, family=family) 
+  int_dist_without_b = evaluate_intervention("load", list(experiments_without_b.values()), true_effects, family=family)
+  
 
   result_dict = {
       "precision_with_b": {"mean": np.array(prec_with_b).mean(), "std": prec_with_b.std()},
       "recall_with_b": {"mean": rec_with_b.mean(), "std": rec_with_b.std()},
       "f1_with_b": {"mean": f1_with_b.mean(), "std": f1_with_b.std()},
+      "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
 
       "precision_without_b": {"mean": prec_without_b.mean(), "std": prec_without_b.std()},
       "recall_without_b": {"mean": rec_without_b.mean(), "std": rec_without_b.std()},
       "f1_without_b": {"mean": f1_without_b.mean(), "std": f1_without_b.std()},
+      "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
   }
 
   # Detailed dictionary (Raw data per iteration)
