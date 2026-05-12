@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from src.counting_ci_tests import CountingTest
 from src.load import load, load_in_mpdag
-from src.pc import pc
+from src.pc import pc, pc_with_bk
 from src.data_generation import generate_data
 from src.background_knowledge import (
     sample_local_background_knowledge,
@@ -758,6 +758,217 @@ def run_experiment_pc_light(base_args, base_seed, n_exp):
 
     for s in tqdm(range(n_exp)):
         exp = get_experiment_pc(**base_args, seed=base_seed + s)
+
+        true_osets = get_true_osets({exp["id"]: exp})
+        f1_list.append(evaluate_oset("pc", [exp], true_osets)[2])
+
+        true_effects = true_causal_effects({exp["id"]: exp}, family=family)
+        int_dist_list.append(
+            evaluate_intervention("pc", [exp], true_effects, family=family)
+        )
+
+        del exp
+
+    f1 = np.sort(np.concatenate(f1_list))
+    int_dist = np.concatenate(int_dist_list)
+
+    return {
+        "f1": {"mean": float(f1.mean()), "std": float(f1.std())},
+        "int_dist": {"mean": float(int_dist.mean()), "std": float(int_dist.std())},
+    }
+
+
+### PC with background knowledge (BPC)
+
+
+def run_algorithm_bpc(
+    id: str,
+    data: np.ndarray,
+    targets: list[int],
+    ci_test: str,
+    alpha: float,
+    bg_knowledge: np.ndarray | None = None,
+    true_dag: nx.DiGraph | None = None,
+    cpt: dict | None = None,
+    **kwargs,
+) -> dict:
+    """
+    Run PC with background knowledge and return a result dict compatible
+    with evaluate_oset and evaluate_intervention.
+
+    Args:
+        bg_knowledge (np.ndarray | None): Required-edge matrix from
+            initialize_background_knowledge. Passed directly to pc_with_bk.
+        **kwargs: Extra fields from generate_data forwarded to CountingTest.
+
+    Returns:
+        dict with keys: amat, time, id, targets, tests, cpt, true_dag, data.
+    """
+    ci_test_fn = CountingTest(data, ci_test, **kwargs)
+
+    start = perf_counter()
+    result = pc_with_bk(
+        data=data,
+        ci_test=ci_test_fn,
+        alpha=alpha,
+        background_knowledge=bg_knowledge,
+    )
+    result["time"] = perf_counter() - start
+
+    result["id"] = id
+    result["targets"] = targets
+    result["tests"] = ci_test_fn.get_tests_per_order().tolist()
+    result["cpt"] = cpt
+    result["true_dag"] = true_dag
+    result["data"] = data
+
+    return result
+
+
+def get_experiment_bpc(
+    seed: int,
+    observed: int,
+    exp_degree: float,
+    max_degree: int,
+    targets: int,
+    expl_anc: bool,
+    identifiable: bool,
+    min_adj_size: int,
+    samples_num,
+    discrete: bool,
+    save: bool,
+    fraction_required: float = 0.1,
+    fraction_forbidden: float = 0.0,
+    alpha: float = 0.01,
+    ci_test: str = "fisherz",
+    **kwargs,
+) -> dict:
+    """
+    Generate one synthetic experiment and run PC+BK on it (local BK sampling).
+
+    fraction_forbidden is accepted for interface compatibility but ignored;
+    only required edges are used. Extra kwargs (e.g. logging) are silently
+    dropped so the same base_args dict used for LOAD experiments works here.
+    """
+    data = generate_data(
+        seed=seed,
+        observed=observed,
+        exp_degree=exp_degree,
+        max_degree=max_degree,
+        targets=targets,
+        identifiable=identifiable,
+        min_adj_size=min_adj_size,
+        samples_num=samples_num,
+        expl_anc=expl_anc,
+        discrete=discrete,
+        save=save,
+    )
+
+    bg_knowledge = sample_local_background_knowledge(
+        data["true_dag"], data["targets"], fraction_required, 0.0, seed
+    )
+    initial_G = initialize_background_knowledge(
+        num_nodes=observed, bk_dict=bg_knowledge
+    )
+
+    return run_algorithm_bpc(
+        bg_knowledge=initial_G,
+        ci_test=ci_test,
+        alpha=alpha,
+        **data,
+    )
+
+
+def get_experiment_bpc_v2(
+    seed: int,
+    observed: int,
+    exp_degree: float,
+    max_degree: int,
+    targets: int,
+    expl_anc: bool,
+    identifiable: bool,
+    min_adj_size: int,
+    samples_num,
+    discrete: bool,
+    save: bool,
+    fraction_required: float = 0.1,
+    fraction_forbidden: float = 0.0,
+    alpha: float = 0.01,
+    ci_test: str = "fisherz",
+    **kwargs,
+) -> dict:
+    """
+    Generate one synthetic experiment and run PC+BK on it (global BK sampling).
+    """
+    data = generate_data(
+        seed=seed,
+        observed=observed,
+        exp_degree=exp_degree,
+        max_degree=max_degree,
+        targets=targets,
+        identifiable=identifiable,
+        min_adj_size=min_adj_size,
+        samples_num=samples_num,
+        expl_anc=expl_anc,
+        discrete=discrete,
+        save=save,
+    )
+
+    bg_knowledge = sample_background_knowledge_v2(
+        data["true_dag"], fraction_required, 0.0, seed
+    )
+    initial_G = initialize_background_knowledge(
+        num_nodes=observed, bk_dict=bg_knowledge
+    )
+
+    return run_algorithm_bpc(
+        bg_knowledge=initial_G,
+        ci_test=ci_test,
+        alpha=alpha,
+        **data,
+    )
+
+
+def run_experiment_bpc_light(base_args, base_seed, n_exp):
+    """
+    Memory-efficient loop for PC+BK with local background knowledge sampling.
+    """
+    f1_list = []
+    int_dist_list = []
+    family = "binary" if base_args.get("discrete", False) else "gaussian"
+
+    for s in tqdm(range(n_exp)):
+        exp = get_experiment_bpc(**base_args, seed=base_seed + s)
+
+        true_osets = get_true_osets({exp["id"]: exp})
+        f1_list.append(evaluate_oset("pc", [exp], true_osets)[2])
+
+        true_effects = true_causal_effects({exp["id"]: exp}, family=family)
+        int_dist_list.append(
+            evaluate_intervention("pc", [exp], true_effects, family=family)
+        )
+
+        del exp
+
+    f1 = np.sort(np.concatenate(f1_list))
+    int_dist = np.concatenate(int_dist_list)
+
+    return {
+        "f1": {"mean": float(f1.mean()), "std": float(f1.std())},
+        "int_dist": {"mean": float(int_dist.mean()), "std": float(int_dist.std())},
+    }
+
+
+def run_experiment_bpc_v2_light(base_args, base_seed, n_exp):
+    """
+    Memory-efficient loop for PC+BK with global background knowledge sampling.
+    """
+    f1_list = []
+    int_dist_list = []
+    family = "binary" if base_args.get("discrete", False) else "gaussian"
+
+    for s in tqdm(range(n_exp)):
+        exp = get_experiment_bpc_v2(**base_args, seed=base_seed + s)
 
         true_osets = get_true_osets({exp["id"]: exp})
         f1_list.append(evaluate_oset("pc", [exp], true_osets)[2])
