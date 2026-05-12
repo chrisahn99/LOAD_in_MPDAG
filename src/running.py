@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from src.counting_ci_tests import CountingTest
 from src.load import load, load_in_mpdag
+from src.pc import pc
 from src.data_generation import generate_data
 from src.background_knowledge import (
     sample_local_background_knowledge,
@@ -627,4 +628,151 @@ def run_experiment_mpdag_noised_light(base_args, base_seed, n_exp):
         "f1_without_b": {"mean": f1_without_b.mean(), "std": f1_without_b.std()},
         "int_dist_with_b": {"mean": int_dist_with_b.mean(), "std": int_dist_with_b.std()},
         "int_dist_without_b": {"mean": int_dist_without_b.mean(), "std": int_dist_without_b.std()}
+    }
+
+### PC baseline
+
+
+def run_algorithm_pc(
+    id: str,
+    data: np.ndarray,
+    targets: list[int],
+    ci_test: str,
+    alpha: float,
+    true_dag: nx.DiGraph | None = None,
+    cpt: dict | None = None,
+    **kwargs,
+) -> dict:
+    """
+    Run the PC algorithm and return a result dict compatible with evaluate_oset
+    and evaluate_intervention.
+
+    Args:
+        id (str): Experiment identifier.
+        data (np.ndarray): Data matrix.
+        targets (list[int]): Target node pair [treatment, outcome].
+        ci_test (str): CI test name (e.g. "fisherz").
+        alpha (float): Significance level.
+        true_dag (nx.DiGraph): Ground-truth DAG (stored for evaluation only).
+        cpt: Conditional probability table (stored for evaluation only).
+        **kwargs: Extra fields from generate_data (e.g. treatment, outcome) are
+            forwarded to CountingTest / CIT and otherwise ignored.
+
+    Returns:
+        dict with keys: amat, time, id, targets, tests, cpt, true_dag, data.
+    """
+    ci_test_fn = CountingTest(data, ci_test, **kwargs)
+
+    start = perf_counter()
+    result = pc(data=data, ci_test=ci_test_fn, alpha=alpha)
+    result["time"] = perf_counter() - start
+
+    result["id"] = id
+    result["targets"] = targets
+    result["tests"] = ci_test_fn.get_tests_per_order().tolist()
+    result["cpt"] = cpt
+    result["true_dag"] = true_dag
+    result["data"] = data
+
+    return result
+
+
+def get_experiment_pc(
+    seed: int,
+    observed: int,
+    exp_degree: float,
+    max_degree: int,
+    targets: int,
+    expl_anc: bool,
+    identifiable: bool,
+    min_adj_size: int,
+    samples_num,
+    discrete: bool,
+    save: bool,
+    alpha: float = 0.01,
+    ci_test: str = "fisherz",
+    **kwargs,
+) -> dict:
+    """
+    Generate one synthetic experiment and run PC on it.
+
+    Extra kwargs (e.g. fraction_required, fraction_forbidden, logging) are
+    silently ignored so that the same base_args dict used for LOAD experiments
+    can be passed here without modification.
+    """
+    data = generate_data(
+        seed=seed,
+        observed=observed,
+        exp_degree=exp_degree,
+        max_degree=max_degree,
+        targets=targets,
+        identifiable=identifiable,
+        min_adj_size=min_adj_size,
+        samples_num=samples_num,
+        expl_anc=expl_anc,
+        discrete=discrete,
+        save=save,
+    )
+
+    return run_algorithm_pc(
+        ci_test=ci_test,
+        alpha=alpha,
+        **data,
+    )
+
+
+def run_experiment_pc(base_args, base_seed, n_exp):
+    """
+    Run n_exp PC experiments and return aggregate metrics.
+    Holds all experiment results in memory; use run_experiment_pc_light for
+    large runs.
+    """
+    experiments = {}
+
+    for s in tqdm(range(n_exp)):
+        exp = get_experiment_pc(**base_args, seed=base_seed + s)
+        experiments[exp["id"]] = exp
+
+    true_osets = get_true_osets(experiments)
+    prec, rec, f1 = evaluate_oset("pc", list(experiments.values()), true_osets)
+    f1 = np.sort(np.array(f1))
+
+    family = "binary" if base_args.get("discrete", False) else "gaussian"
+    true_effects = true_causal_effects(experiments, family=family)
+    int_dist = evaluate_intervention("pc", list(experiments.values()), true_effects, family=family)
+
+    return {
+        "f1": {"mean": float(f1.mean()), "std": float(f1.std())},
+        "int_dist": {"mean": float(int_dist.mean()), "std": float(int_dist.std())},
+    }
+
+
+def run_experiment_pc_light(base_args, base_seed, n_exp):
+    """
+    Memory-efficient variant: evaluates each experiment immediately and discards it,
+    accumulating only scalar metrics.
+    """
+    f1_list = []
+    int_dist_list = []
+    family = "binary" if base_args.get("discrete", False) else "gaussian"
+
+    for s in tqdm(range(n_exp)):
+        exp = get_experiment_pc(**base_args, seed=base_seed + s)
+
+        true_osets = get_true_osets({exp["id"]: exp})
+        f1_list.append(evaluate_oset("pc", [exp], true_osets)[2])
+
+        true_effects = true_causal_effects({exp["id"]: exp}, family=family)
+        int_dist_list.append(
+            evaluate_intervention("pc", [exp], true_effects, family=family)
+        )
+
+        del exp
+
+    f1 = np.sort(np.concatenate(f1_list))
+    int_dist = np.concatenate(int_dist_list)
+
+    return {
+        "f1": {"mean": float(f1.mean()), "std": float(f1.std())},
+        "int_dist": {"mean": float(int_dist.mean()), "std": float(int_dist.std())},
     }
