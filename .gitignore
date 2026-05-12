@@ -55,3 +55,4 @@ slurm_scripts/
 .geminiignore
 
 *.sh
+.claude/
